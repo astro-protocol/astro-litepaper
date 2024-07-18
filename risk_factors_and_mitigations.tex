@@ -1,0 +1,39 @@
+\newpage
+\section{Risk Factors and Mitigation}
+
+\subsection{Liquidation Risk}
+Liquidation risk occurs when the value of the collateral backing USDA drops significantly, making it insufficient to cover the issued stablecoins. This could lead to forced liquidation of collateral assets, causing instability in the protocol.\\
+
+\textbf{Mitigation Strategies:}
+\begin{itemize}
+    \item \textbf{Over-Collateralization}: Astro ensures that all USDA stablecoins are over-collateralized. The value of the collateral always exceeds the stablecoins issued, providing a buffer against market volatility.
+    \item \textbf{Automated Liquidation Mechanisms}: Astro employs automated systems to monitor collateral levels and initiate liquidations when values fall below a threshold. This maintains stablecoin stability by ensuring adequate backing.
+    \item \textbf{Direct Liquidation Handler}: It enables immediate liquidation of undercollateralized vaults under specific conditions. A vault is liquidated if its collateralization ratio drops below set thresholds, and users can do so by paying off the debt, including fees and penalties. The handler then transfers the collateral to the liquidator’s account and closes the vault, ensuring stability.
+    \item \textbf{Protocol Liquidation Handler}: This component automates the liquidation of undercollateralized vaults to maintain system stability. It initiates auctions, calculates the total due (including fees and penalties), and recovers funds for the protocol. The handler’s integration with the Auction Module ensures efficient liquidation under adverse market conditions.
+    \item \textbf{Stability Module and Stability Pool}: The Stability Module, including the Stability Pool, acts as a financial buffer during market volatility. Stablecoin deposits are used to support the protocol during high liquidation demand or liquidity needs. The Stability Pool stabilizes the market and prevents sell-offs by purchasing undercollateralized assets at a discount during liquidation events. This intervention ensures quick resolution of potential defaults, minimizing financial health.
+    \item \textbf{Auction Model}: The Auction Module manages the auctioning of collateral from undercollateralized vaults through Dutch-style auctions, ensuring efficient liquidation and fair market prices for collateral.
+\end{itemize}
+
+\subsection{Custodial \& Distributed Wallets Risk (Protocol Hosted Wallet)}
+Custodial risk involves potential loss or mismanagement of collateral assets. If custodians fail or act maliciously, it could jeopardize asset security.\\
+
+
+\textbf{Mitigation Strategies:}
+\begin{itemize}
+    \item \textbf{Protocol Hosted Wallet (PHW)}: Astro uses a Protocol Hosted Wallet (PHW) to manage assets directly within the protocol. This dedicated wallet system enhances security and simplifies user interactions by maintaining a controlled environment for asset transactions.
+    \item \textbf{Trusted Custodians}: In cases where third-party custodial services are used, Astro collaborates with reputable custodial service providers known for robust security measures. Similar to the Wrapped Bitcoin (WBTC) model with BitGo, a third-party custodial partner may oversee new wallet development, enhancing transparency and efficiency.
+    \item \textbf{Community-Driven Governance}: The PHW is supported by a consortium of ecosystem teams, such as the Astro Labs team and core members, ensuring that the wallet's management remains transparent, decentralized, and aligned with the community's interests.
+    \item \textbf{Legal and Governance Structure}: The PHW may be governed by a foundation and a trustee to manage overarching governance and daily operations, respectively. This dual-entity approach facilitates structured management and legal compliance, ensuring sustainability and security.
+    \item \textbf{Bankruptcy Remote Vehicle}: Incorporating the PHW and custodial wallets within a trust's legal framework makes it bankruptcy remote, safeguarding it against the insolvency of associated entities, thus enhancing asset security.
+\end{itemize}
+
+\subsection{Oracle Risk}
+Oracle risk involves the potential for inaccurate or delayed market data from oracles, which could lead to improper valuations of collateral and subsequent financial instability within the protocol.\\
+
+
+\textbf{Mitigation Strategies:}
+\begin{itemize}
+    \item \textbf{Real-Time Data Feeds}: The Oracle Module aggregates price data from multiple external sources, ensuring a robust and diversified feed that reduces the risk of manipulation or errors.
+    \item \textbf{Price Update Mechanisms}: Utilizing advanced algorithms and time-weighted averages, the Oracle Module updates prices at predefined intervals or in response to significant market movements, maintaining a stable and predictable environment.
+    \item \textbf{Security and Reliability Enhancements}: The module incorporates features to detect and mitigate potential threats such as incorrect prices from malicious actor feeds or unusual market activity, preserving the protocol's resilience. Moreover, the Oracle Module and its dependent contracts verify each other’s identity before price data is updated and used. The use of battle-tested oracle services and feeds will be critical in maintaining accurate and reliable data.
+\end{itemize}

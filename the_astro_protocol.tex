@@ -1,0 +1,454 @@
+\section{The Astro Protocol}
+Astro Protocol is a blockchain-based framework that enables the minting of stablecoins and synthetic assets, backed by on-chain collateral, stored and managed by processes developed within the AO compute environment. Unlike existing platforms, Astro introduces dynamic liquidation processes and stability modules to enhance system resilience and user trust.
+
+\subsection{Basic Concepts}
+Astro Protocol utilizes the Vault Contract as its core, where users lock in collateral to mint synthetic stablecoins. The protocol's design includes unique mechanisms for liquidation and stability, supported by real-time data from integrated oracle services. We also introduce a Protocol Hosted Wallet (PHW) and Wrapped Arweave (wAR) tokens, extending functionality and usability, making the protocol adaptable to a wide range of blockchain environments.\\\\
+
+
+\noindent\textbf{Notice:} In this document, the terms "contract" and "process" are used interchangeably. Within the AO compute environment, processes are analogous to contracts, and this terminology reflects their functional equivalence in the context of the Astro Protocol.\\
+
+\subsection{Formal Definitions}
+\begin{itemize}
+    \item \textbf{Vault Contract (VC):} Manages the deposits, withdrawals, and issuance of synthetic assets against locked collateral.
+    \item \textbf{Oracle Module (OM):} Provides real-time pricing data by integrating feeds from sources like ChainLink, Pyth, and RedStone.
+    \item \textbf{Liquidation Module (LM):} Activates to handle undercollateralized positions via direct user actions or systematic protocol-driven auctions.
+    \item \textbf{Stability Module (SM):} Manages liquidity pools to mitigate systemic risks and ensure protocol stability.
+    \item \textbf{Protocol Hosted Wallet (PHW):} A dedicated wallet system designed to hold and manage Arweave tokens securely within the protocol.
+    \item \textbf{Wrapped Arweave (wAR):} A synthetic version of AR transferable within the aoComputer, designed for use within the Astro Protocol and other processes on the computer.
+\end{itemize}
+
+\subsection{Astro Protocol Flow}
+Astro's Vault Contract is the entry point for users to interact with the protocol by depositing collateral and minting synthetic stablecoins. The Vault Contract holds the information needed to calculate the USD equivalent and USDA value and fees.
+
+Let the following be defined:
+\begin{itemize}
+    \item USD-equivalent value as \( V \)
+    \item Quantity as \( q \)
+    \item The price feed for the given currency identifier \( P \)
+    \item Collateralization factor as \( c \)
+    \item Calculated fees as \( F \)
+    \item Stability fee percentage as \( s \)
+    \item Asset loan as \( L \)
+    \item Amount of currency as \( amount \)
+\end{itemize}
+\vspace{1em}
+The current USD equivalent value of a currency is:
+\[
+V(\text{currency}, q) = q \times P(\text{currency})
+\]
+
+The USDA loan value is:
+\[
+L(\text{currency}, q, c) = \frac{V(\text{currency}, q)}{c}
+\]
+
+The current fee calculation is:
+\[
+F(s, \text{amount}) = s \times \text{amount}
+\]
+
+\subsubsection{Deposit and Mint}
+Users deposit collateral into the Vault Contract, which allows them to mint synthetic assets proportional to the value of their deposit, while maintaining a collateralization ratio deemed ‘safe’ by the protocol.
+
+\subsubsection{Liquidation Processes}
+In the event of market downturns affecting collateral values, the Liquidation Module is triggered to secure the protocol's assets and users' positions. The Contract is responsible for calculating collateralization ratios, liquidation bonuses, total redeemable collateral, and repayment amounts.\\
+
+The collateralization ratio calculation is:
+\[
+\text{ratio} = \frac{\text{Collateral Value in USD}}{\text{USDA Debt}}
+\]\\
+
+The liquidation bonus calculation is:
+\[
+\text{Bonus} = \text{Liquidated Collateral} \times \frac{\text{Liquidation Bonus Percentage}}{100}
+\]\\
+
+The total redeemable collateral calculation is:
+\[
+\text{Total Redeemable} = \text{Liquidated Collateral} + \text{Bonus}
+\]\\
+
+The repayment calculation is:
+\[
+\text{Repayment} = \text{Debt} \times (1 + \text{Stability Fee})
+\]
+
+\newpage
+\section{Protocol Architecture}
+Astro Protocol's architecture is designed to support simple yet robust interactions among its components, optimizing for large amounts of liquidity  while minimizing volatility.
+
+\subsection{Vault Contract}
+Central to the protocol, the Vault Contract enforces the deposits, withdrawals, and issuance of synthetic assets. It interacts directly with the Oracle Module to get real-time pricing, ensuring that the collateralization ratios are maintained within safe limits.
+
+\subsubsection{Key Functions and Role}
+\begin{itemize}
+    \item \textbf{Collateral Management}: The Vault Contract allows users to deposit collateral in exchange for synthetic assets or stablecoins (e.g., USDA).
+    \item \textbf{Debt Issuance and Management}: Minting synthetic assets is enabled for users upon collateral deposit, following the protocol's determined ratios.
+    \item \textbf{Real-Time Pricing Updates}: The Vault Contract integrates with the Oracle Module for real-time pricing updates on different collateral types. It enables accurate and fair vault management by maintaining current collateral values.
+    \item \textbf{Liquidation Triggers}: The Vault Contract starts liquidation if collateral value drops below predefined thresholds. These can be handled directly through the Direct Liquidation Handler or, in more severe cases, passed to the Auction Module via the Protocol Liquidation Handler. Liquidation is discussed in more detail in the “Liquidation Module” section.
+
+    \item \textbf{User Interaction Interfaces}: The contract offers action handlers for users to interact with their collateral and debts. It includes functions for depositing and withdrawing collateral, minting and burning synthetic assets, and managing debts.
+    
+    \item \textbf{Fee and Penalty Collection}: The Vault Contract calculates and collects stability fees and liquidation penalties during liquidations. These fees are crucial for compensating the protocol for the risks and maintaining overall economic stability.
+\end{itemize}
+
+\subsubsection{Importance within Protocol’s Architecture}
+The Vault Contract is vital for the operational efficiency and financial security of the Astro Protocol. It acts as the primary interface for users, facilitating all major interactions with the protocol. Its robust design ensures:
+\begin{itemize}
+    \item \textbf{Security and Trust}: Users can trust the protocol with their assets, knowing that the Vault Contract enforces strict rules and transparent operations.
+    \item \textbf{Efficiency}: The automated processes within the contract reduce the need for manual intervention, streamlining operations and minimizing errors or delays.
+    \item \textbf{Flexibility}: By supporting various types of collateral and synthetic assets, the Vault Contract caters to a broad user base with diverse needs.
+    \item \textbf{Stability}: Through the integration with the Stability and Oracle Modules, the contract contributes to the overall resilience of the protocol, adapting to market changes and user activities dynamically.
+\end{itemize}
+
+\subsection{Liquidation Module}
+This module is triggered when collateral value falls below predefined thresholds, with two main components: the Direct Liquidation Handler and Protocol Liquidation Handler. It supports both immediate liquidations by users and systematic liquidations managed by the protocol itself.
+
+\subsubsection{Direct Liquidation Handler}
+The Direct Liquidation Handler is a specialized component of the Astro Protocol’s Liquidation Module, crafted to facilitate the immediate liquidation of undercollateralized vaults when specific conditions are met. This handler enables rapid response to mitigate potential risks from fluctuating market values of collateral.
+
+\subsubsection{Key Functions and Role}
+\begin{itemize}
+    \item \textbf{Threshold-Based Liquidation Activation}: The Direct Liquidation Handler is triggered when a vault's collateralization ratio falls between predefined thresholds, such as less than 175\% but more than 150\%. For example, if a vault's collateralization ratio drops to 160\%, the Direct Liquidation Handler will be activated. This trigger ensures swift liquidation to protect collateral value and system stability.
+    \item \textbf{Execution of Liquidation}: Authorized users can directly liquidate a vault with this handler upon activation. To recover the collateral, the liquidator pays off the vault's debt, including fees and penalties.
+    \item \textbf{Debt Settlement and Fee Calculation}: The handler calculates the repayment amount to close the vault in a direct liquidation event. This includes the debt principal (USDA Loan), stability fee (5\%), and liquidation penalty (13\%). These fees deter risky behavior and compensate for the associated risk.
+    \item \textbf{Collateral Transfer and Vault Closure}: The Direct Liquidation Handler facilitates the collateral transfer upon receiving payment from the liquidator. Concurrently, it ensures that the original debt is marked as settled, and the vault is officially closed within the system’s records.
+    \item \textbf{Protocol Fee Distribution}: Collected fees will be managed by stewards via a protocol treasury until decentralized governance controls fee distribution.
+
+    \item \textbf{Integration with Stability Measures}: While the Direct Liquidation Handler operates autonomously to address immediate liquidation needs, it is designed to work in harmony with other protocol components, such as the Stability Pool and the Oracle Module. This ensures actions are based on real-time market data and contribute to protocol stability and liquidity.
+\end{itemize}
+
+\subsubsection{Protocol Liquidation Handler}
+The Protocol Liquidation Handler is an integral component of the Astro Protocol’s Liquidation Module, specifically designed to manage the systematic liquidation of undercollateralized vaults when they fail to meet the required collateralization thresholds. This handler automates critical processes to maintain the system's stability and prevent potential financial crises within the protocol.
+
+\subsubsection{Key Functions and Role}
+\begin{itemize}
+    \item \textbf{Automated Liquidation Initiation}: The handler is activated when a vault’s collateralization ratio falls significantly, specifically below the minimum threshold, such as less than 150\%. For instance, if a vault's collateralization ratio drops to 130\%, the Protocol Liquidation Handler will be triggered instead of the Direct Liquidation Handler. This automated trigger ensures timely intervention to mitigate risks associated with declining collateral values.
+    \item \textbf{Auction Process Management}: For severely undercollateralized vaults, the handler initiates an auction to liquidate the collateral efficiently. It interacts with the Auction Module, setting up the auction’s parameters such as starting price, price decrement rates, and auction duration based on the prevailing market conditions and the vault’s debt levels. Auctions are discussed in more detail in the “Auction Module” section.
+    
+    \item \textbf{Debt and Fee Handling}: The handler calculates the total amount due for the auction, including the principal debt, stability fees, and liquidation penalties. This total forms the recovery target for the auction, ensuring that the protocol recoups the necessary funds to cover the defaulted loan.
+    \item \textbf{Vault Closure and Administration}: Post-triggering an auction, the handler is responsible for closing the defaulting vault. It transfers the collateral to the auction mechanism and, following the auction, manages the allocation of the recovered funds and finalizes the closure of the vault within the protocol’s ledger.
+    \item \textbf{Contribution to Systemic Stability}: The Protocol Liquidation Handler plays a crucial role in maintaining the overall health and stability of Astro Protocol by preventing losses that could escalate into broader systemic risks. This is achieved through efficient and orderly liquidation processes, even under adverse market conditions.
+    \item \textbf{Integration with Other Protocol Modules}: Utilizing real-time data from the Oracle Module, the handler ensures that liquidation prices reflect current market values, enhancing the chances of successful debt recovery. It may also interact with the Stability Module to utilize or replenish protocol reserves, depending on the outcomes of the liquidation process.
+\end{itemize}
+
+\subsection{Stability Module}
+The Stability Module is integral for maintaining the health of the protocol during market volatility. It includes a Stability Pool where users can deposit stablecoins to earn rewards and a Collateral Pool that enhances liquidity and supports the protocol's stability. It acts as a financial buffer against market volatility and systemic risks by managing liquidity pools and providing mechanisms to mitigate potential defaults and liquidations.
+
+\subsubsection{Key Functions and Role}
+\begin{itemize}
+    \item \textbf{Liquidity Management}: The Stability Module aggregates user deposits in the form of stablecoins (e.g., USDC). These deposits are used to support the protocol during periods of high demand for liquidation or when additional liquidity is necessary to maintain operations, ensuring that the protocol can cover its liabilities efficiently.
+    \item \textbf{Risk Mitigation}: By pooling resources, the Stability Module can intervene in liquidation events to purchase undercollateralized assets at a discount. By preventing large-scale sell-offs, this intervention stabilizes the market and safeguards collateral values.
+    \item \textbf{Reward Distribution}: Users who contribute to the Stability Pool will be rewarded with AST tokens or other incentives, proportionate to their share of the pool over time. These rewards compensate users for the temporary loss of liquidity during fund usage in stability operations.
+    \item \textbf{Integration with Oracle Module}: The Stability Module interacts with the Oracle Module for accurate pricing updates on assets. Current market values are used to make decisions about liquidation or collateral purchases, optimizing results.
+    \item \textbf{Automated Liquidation Participation}: The Stability Module automatically purchases distressed assets if a vault lacks collateral. This process minimizes default impact on the protocol's financial health by resolving them quickly.
+    \item \textbf{Governance and Protocol Support}: Governance votes determine where to allocate funds from the Stability Module. This can include funding development, enhancing protocol security, or other activities that contribute to the long-term sustainability of the system.
+\end{itemize}
+
+\subsubsection{Stability Pool}
+The Stability Pool in the Astro Protocol is designed to act as a financial buffer that enhances the system's resilience against defaults and helps maintain overall liquidity and stability. This component is critical for absorbing shocks from market volatility and managing undercollateralized loans in a decentralized finance environment.
+
+The Stability Pool collects deposits in the form of stablecoins, such as USDA, from users who wish to support the protocol’s stability and earn rewards. These funds are used to purchase collateral from liquidated vaults, effectively absorbing the debt from undercollateralized loans. When the Vault Contract or Auction Module processes liquidations, the Stability Pool is often the first line of defense. It uses its pooled resources to buy out distressed collateral at a discounted rate, helping to stabilize the protocol’s economy and mitigate potential losses.
+
+Stability Pool parameters, such as reward distribution rates, intervention thresholds, and other operational policies, are often governed by the protocol’s DAO. This allows stakeholders to participate in decision-making processes, aligning the pool’s strategies with the broader interests of the community.
+
+\subsubsection{Stability Pool Liquidation Scenario in Astro Protocol}
+\begin{enumerate}
+    \item \textbf{Assumption Setup:}
+    \begin{itemize}
+        \item Stability Pool Total Deposit: 1,000,000 USDA.
+        \item Bob's Contribution: 100,000 USDA (Bob contributes to the Stability Pool, giving him a 10\% share in the pool).
+        \item Alice's Vault Details: Alice's vault gets liquidated, which has a debt of 20,000 USDA and collateral of 400 wAR, with the price of wAR being \$75 per wAR.
+        \item The collateralization ratio for protocol liquidation to occur is 150%.
+    \end{itemize}
+
+    \item \textbf{Impact of Liquidation on Bob's Deposit:}
+    \begin{enumerate}
+        \item \textbf{Bob's Share in the Pool:}
+        $$
+        \text{Bob's Share} = 
+        \frac{\text{Bob's Contribution}}{\text{Total Pool Deposit}} =
+        \frac{100,000 \text{ USDA}}{1,000,000 \text{ USDA}} = 10\%
+        $$
+
+        \item \textbf{Debt from Alice's Liquidated Vault:}
+        $$
+        \text{Debt} = 20,000 \text{ USDA}
+        $$
+
+        \item \textbf{Bob's Contribution to Repaying Debt:}
+        $$
+        \text{Bob's Contribution to Debt} = 
+        \text{Bob's Share} \times \text{Debt} =
+        10\% \times 20,000 = 2,000 \text{ USDA}
+        $$
+
+        \item \textbf{Remaining USDA in Bob's Deposit Post-Liquidation:}
+        \begin{align*}
+        \text{Remaining USDA} &= 
+        \text{Bob's Contribution} - \text{Bob's Contribution to Debt} \\
+        &= 100,000 \text{ USDA} - 2,000 \text{ USDA} \\
+        &= 98,000 \text{ USDA}
+        \end{align*}
+
+        \item \textbf{Calculating Bob's Gain in Collateral:}
+        \begin{itemize}
+            \item \textbf{Collateral from Liquidated Vault:}
+            $$
+            \text{Collateral} = 400 \text{ wAR}
+            $$
+
+            \item \textbf{Bob's Share of Collateral:}
+            \begin{align*}
+            \text{Bob's Share of Collateral} &= 
+            \text{Bob's Share} \times \text{Collateral} \\
+            &= 10\% \times 400 \\
+            &= 40 \text{ wAR}
+            \end{align*}
+
+        \item \textbf{Financial Evaluation of the Transaction:}
+        \begin{itemize}
+        \item \textbf{Value of wAR Received:}
+        \begin{align*}
+        \text{Value of wAR Received} &= 
+        \text{Bob's Share of Collateral} \\
+        &\quad \times \text{Price per wAR} \\
+        &= 40 \times \$75 \\
+        &= \$3,000
+        \end{align*}
+        
+        \item \textbf{Net Gain:}
+        \begin{align*}
+        \text{Net Gain} &= 
+        \text{Value of wAR Received} \\
+        &\quad - \text{Bob's Contribution to Debt} \\
+        &= \$3,000 - \$2,000 \\
+        &= \$1,000
+        \end{align*}
+        \end{itemize}
+        \end{itemize}
+    \end{enumerate}
+
+    \item \textbf{Post-Liquidation Scenario:}
+    \begin{itemize}
+        \item Bob's remaining deposit in the Stability Pool is 98,000 USDA.
+        \item Bob additionally acquires 40 wAR, valued at \$3,000.
+        \item Bob realizes a net gain of \$1,000 from this single liquidation event.
+    \end{itemize}
+\end{enumerate}
+
+
+
+
+\subsection{Peg Stability Handler}
+The Peg Stability Handler is a critical component designed to maintain the stability of the USDA peg within the Astro Protocol. It targets vaults with a Collateral Ratio (CR) \textless  175\%. If there are no such vaults, the handler includes the lowest loan-to-value (LTV) vaults. The dual criteria approach enhances the protocol's stability by ensuring flexibility in selecting vaults for redemption.
+
+Users or automated agents can redeem USDA for wAR using the Peg Stability Handler. The process includes identifying vaults, processing redemption requests, and executing adjustments. This section outlines the detailed steps and benefits of the Peg Stability Handler.
+
+\subsubsection{Identifying Eligible Vaults}
+The first step in the Peg Stability Handler’s operation is to identify vaults eligible for redemption. This involves the following criteria and steps:\\
+
+\textbf{Criteria:}
+\begin{itemize}
+    \item \textbf{Primary:} Vaults with a Collateral Ratio (CR) of less than 175\%.
+    \item \textbf{Secondary:} If no vaults meet the primary criteria, select vaults based on the lowest Loan-to-Value (LTV) ratios.
+\end{itemize}
+
+\subsubsection{Key Functions and Role:}
+\begin{enumerate}
+    \item \textbf{Data Collection:} Retrieve current data on each vault’s collateral value and the amount of USDA issued.
+
+    \item \textbf{Calculate CR and LTV:}
+    \[
+    \text{CR} = \left( \frac{\text{Value of Collateral}}{\text{Value of USDA Issued}} \right) \times 100\%
+    \]
+    \[
+    \text{LTV} = \left( \frac{\text{Amount of USDA Issued}}{\text{Value of Collateral}} \right) \times 100\%
+    \]
+
+    \item \textbf{Filter Vaults:} Initially filter for vaults where CR \textless  175\%. If no vaults meet this criterion, select vaults with the lowest LTV.
+\end{enumerate}
+
+\subsubsection{Redemption Requests}
+Once eligible vaults are identified, the Peg Stability Handler facilitates the redemption of USDA at par value for wAR. This process includes the following steps:
+
+\begin{enumerate}
+    \item \textbf{Interaction:} Users or automated agents interact with the protocol to request the redemption of USDA at its par value for wAR from the selected vaults.
+
+    \item \textbf{Steps:}
+    \begin{enumerate}
+        \item \textbf{Request Initiation:} Users or agents submit a redemption request. Validate the request to ensure the vault meets the specified criteria (CR \textless  175\% or lowest LTV).
+        \item \textbf{Redemption Execution:} Transfer the equivalent amount of wAR from the vault to the user and reduce the debt by the amount of USDA redeemed, thereby increasing the vault’s CR.
+    \end{enumerate}
+\end{enumerate}
+
+\subsubsection{Collect \& Adjust Mechanism}
+The collect and adjust mechanism ensures that the collateral ratio is impacted positively by the redemption of wAR, thereby pushing the CR higher and reducing the debt-to-collateral ratio of the affected vaults. The process involves:
+
+\begin{enumerate}
+    \item \textbf{Collect wAR:} The protocol collects wAR from the selected vaults.
+    \item \textbf{Adjust CR:} The USDA used for redemption is removed from the vault's debt, which increases the CR by reducing the debt relative to the collateral.
+\end{enumerate}
+
+\subsubsection{Benefits}
+The Peg Stability Handler provides several key benefits. Users can profit and stabilize the USDA peg through arbitrage within Astro Protocol. It aids in vault liquidations, improving their health by adjusting CR and debt-to-collateral ratio. This dual action enhances the overall stability of the protocol.
+
+\subsubsection{Process Flow \& Scenario}
+The following flow illustrates the operation of the Peg Stability Handler:
+\begin{enumerate}
+    \item \textbf{User Initiates Redemption:} A user or automated agent initiates a redemption request through the protocol interface.
+    \item \textbf{Identify Eligible Vaults:} The protocol checks for vaults with CR \textless  175\%. If none are found, it looks for the vaults with the lowest LTV.
+    \begin{itemize}
+        \item \textbf{Example:} If Vault A has a CR of 160\% and Vault B has an LTV of 40\%, Vault A is prioritized for redemption.
+    \end{itemize}
+    \item \textbf{Validate and Process Redemption:} The request is validated to ensure the vault meets the criteria. The user’s USDA is accepted, and the equivalent value in wAR is transferred from the vault to the user.
+    \item \textbf{Adjust CR:} The USDA used in the redemption is removed from the vault’s debt, increasing the CR and improving the vault’s stability.
+    \item \textbf{Update Vault Status:} The vault’s records are updated to reflect the new amounts of USDA issued and wAR collateral. The CR of the vault is recalculated and monitored.
+\end{enumerate}
+
+The Peg Stability Handler is an essential mechanism for maintaining the stability of USDA within the Astro Protocol. Targeting vaults based on CR and LTV criteria improves redemption efficiency. This mechanism facilitates arbitrage and supports partial liquidations, improving protocol health and stability. Positively impacting the collateral ratio supports protocol resilience and USDA's stable value.
+
+
+\subsection{Auction Module}
+The Auction Module is an essential component of the Astro Protocol, designed to manage the auctioning of collateral from undercollateralized vaults. This module facilitates efficient asset liquidation, promoting debt recovery and financial stability. It implements Dutch-style auctions to enable broader market participation in liquidations, promoting fair market prices and efficient collateral redistribution.
+
+\subsubsection{Key Functions and Role}
+\begin{itemize}
+    \item \textbf{Auction Initiation and Management}: The Auction Module is activated for vaults with severely undercollateralized collateral. It oversees the entire auction process, ensuring adherence to rules and protocols.
+    \item \textbf{Dynamic Pricing Strategy}: The module implements a dynamic pricing mechanism where the starting price is set above the current market value (typically 20-30\% higher) to maximize debt recovery. The price decreases based on a predefined decrement percentage until the auction ends.
+    \item \textbf{Debt Recovery and Fee Handling}: Auctions address debts of the liquidated vault, including principal, stability fees, and liquidation penalties. The module guarantees payment of financial obligations from auction proceeds.
+    \item \textbf{Transparent and Fair Bidding Process}: Bidders participate by submitting bids aligned with the Auction Module's price. The process promotes transparency and fair participation. The module uses a decremental pricing strategy to update bid prices at regular intervals.
+    \item \textbf{Integration with Oracle Module}: To ensure that auctions start at a reasonable price relative to the market, the Auction Module integrates closely with the Oracle Module for accurate and timely asset valuations. This integration sets and adjusts auction prices.
+    \item \textbf{Handling Auction Outcomes}: At the conclusion of an auction, the module handles the transfer of collateral to the highest bidder and ensures the distribution of funds to cover the debts associated with the liquidated vault. Surplus funds are either returned or redirected as per rules.
+\end{itemize}
+
+\subsubsection{Auction Mechanism}
+Below are variables and formulas used to calculate auction parameters and execute auctions.\\
+
+Let the following be defined:
+\begin{itemize}
+    \item Quantity of collateral (e.g., number of wAR tokens) as \( q \)
+    \item Price feed for the collateral currency as \( P \)
+    \item Collateral value in USDA as \( V \)
+    \item Collateralization factor (a multiplier based on risk assessment) as \( c \)
+    \item Stability fee percentage as \( s \)
+    \item USDA Loan (debt) as \( d \)
+    \item Total fees calculated as \( F \)
+    \item Debt including fees as \( d_f \)
+    \item Time as \( t \)
+    \item Adjusted value of the collateral as \( V_{\text{adj}} \)
+\end{itemize}
+\newpage
+\begin{enumerate}
+    \item \textbf{Collateral Value Calculation:}
+    \[
+    V = q \times P
+    \]
+    Here, \( V \) represents the current market value of the collateral in USDA, calculated as the product of the quantity of collateral \( q \) and its current market price per unit \( P \).
+
+    \item \textbf{USDA Value Calculation Adjusted for Collateralization:}
+    \[
+    V_{\text{adj}} = c \times V
+    \]
+    The adjusted value of the collateral \( V_{\text{adj}} \) considers the collateralization factor \( c \), which adjusts the raw market value to account for risk factors associated with the collateral type.
+
+    \item \textbf{Fees Calculation:}
+    \[
+    F = \left( \frac{s}{100} \right) \times d
+    \]
+    The total fees \( F \) are calculated as a percentage \( s \) of the debt \( d \). This includes the stability fee and potentially other fees like liquidation penalties.
+
+    \item \textbf{Debt Including Fees Calculation:}
+    \[
+    d_f = d + F
+    \]
+    The total amount needed to clear the debt, \( d_f \), includes the original debt \( d \) plus the calculated fees \( F \).
+\end{enumerate}
+
+\textbf{Auction Execution Process}
+\begin{enumerate}
+    \item \textbf{Auction Start Price Calculation:}
+    \[
+    \text{start\_price} = P \times (\text{markup})
+    \]
+    The auction's start price is set higher than the current market price \( P \) by a certain markup percentage (e.g., 20 to 30\%) to maximize the potential recovery amount.
+
+    \item \textbf{Price Decrement Over Time:}
+    \[
+    \text{current\_price} = \text{start\_price} - (\text{decay\_factor} \times t)
+    \]
+    The current price \(\text{current\_price}\) is decremented over time based on a decay factor that is calculated as a percentage reduction every set interval until it reaches or is still sufficient to cover \( d_f \).
+
+    \item \textbf{Determine the Auction Closure Condition:}
+    \[
+    d_f \leq \text{current\_price} \times q
+    \]
+    When a bidder pays the \(\text{current\_price} \times q\) and this amount covers at least \( d_f \), the auction is considered successful. The bidder receives the collateral, and the debt \( d \) is considered settled.
+
+    \item \textbf{Auction Closure:}
+    \[
+    (\text{start\_price} \times (1 - \text{decay\_factor})^t \times q) \geq d_f
+    \]
+    The auction closes successfully when the amount paid by the bidder, which is the current price of the asset multiplied by the quantity, is greater than or equal to the total debt including fees.
+\end{enumerate}
+\newpage
+\subsection{Oracle Module \& Service}
+The Oracle Module is a pivotal component of the Astro Protocol, tasked with providing accurate and timely market data to various other parts of the system. This module ensures that all financial operations within the protocol are based on the most current and reliable asset valuations.
+
+\subsubsection{Key Functions and Role}
+\begin{itemize}
+    \item \textbf{Real-Time Data Feeds}: The Oracle Module collects price data from multiple sources to minimize manipulation and errors. This data is crucial for the accurate valuation of collateral across the protocol.
+    \item \textbf{Integration with Vault Contract}: Real-time pricing updates are provided to the Vault Contract by the module, allowing for dynamic assessment of collateral values. This integration ensures proper collateralization and triggers liquidation if values drop.
+    \item \textbf{Support for Liquidation and Auction Modules}: The Oracle Module safeguards the protocol's financial integrity by ensuring fair valuation of assets during liquidation and auctions.
+    \item \textbf{Price Update Mechanisms}: Utilizing advanced algorithms and time-weighted averages, the Oracle Module updates prices at predefined intervals or in response to significant market movements. It helps maintain stability and predictability for protocol participants.
+    \item \textbf{Security and Reliability Enhancements}: The module incorporates features to detect and mitigate potential threats such as flash loan attacks or unusual market activity. This proactive security approach preserves the resilience and trustworthiness of the protocol.
+    \item \textbf{Governance and Updates}: The protocol's decentralized governance framework governs decisions on price feed additions or adjustments. Token holders shape the Oracle Module's evolution in line with community interests and market environment.
+\end{itemize}
+
+\subsubsection{Oracle Module Price Update Mechanism}
+The Oracle Module operates by maintaining a consistent update cycle governed by predefined intervals. This ensures that all dependent contracts within the Astro Protocol receive timely and accurate market data. The Oracle Module holds the necessary information to feed accurate prices of collateral to the protocol.\\
+
+Let the following be defined:
+\begin{itemize}
+    \item \textbf{TimeDelay}: The fixed interval between price updates (typically one hour).
+    \item \textbf{LastUpdateTime}: The timestamp when the price was last updated.
+    \item \textbf{CurrentPrice}: The most recent price of the collateral.
+    \item \textbf{NextPrice}: The upcoming price of the collateral, set to be published after the TimeDelay.
+    \item \textbf{Whitelists}: A list of contract addresses that are authorized to receive updated prices after each interval.
+\end{itemize}
+
+\textbf{Price Update Process}
+The price update process can be described using the following steps and formulas:
+\begin{enumerate}
+    \item \textbf{Initiating Price Updates:} The Oracle Module is triggered by a regular call to an action handler (e.g., Poke). This can be automated through a cron job or similar scheduling mechanism to occur at LastUpdateTime + TimeDelay.
+    \item \textbf{Updating Current and Next Prices:} When the Poke function is called, the Oracle Module performs the following operations:
+    \begin{enumerate}
+        \item \textbf{Set Current Price:}
+        \[
+        \text{CurrentPrice} = \text{NextPrice}
+        \]
+        \item \textbf{Fetch New Price:} The new price is obtained from an aggregated feed of external sources or directly from a trusted oracle service.
+        \item \textbf{Set Next Price:}
+        \[
+        \text{NextPrice} = \text{newly obtained price}
+        \]
+    \end{enumerate}
+    \item \textbf{Broadcasting the Price Update:} After updating the prices, the Oracle Module sends the new CurrentPrice to all contracts listed in the Whitelists. This ensures that all relevant parts of the Astro Protocol, such as the Vault Contract, are operating with the most recent price data.
+\end{enumerate}
+
+\subsection{Protocol Hosted Wallet (PHW)}
+The Protocol Hosted Wallet (PHW) is an essential component of the Astro Protocol, designed to streamline user interactions with Arweave and AO layers by managing assets directly within the protocol itself. This dedicated wallet system simplifies the user experience and enhances security by maintaining a controlled environment for asset transactions and management.
+
+The PHW serves a critical role in the Astro Protocol by managing deposited Arweave tokens (AR) securely. Given the importance of the PHW in the ecosystem, strategic decisions regarding its governance and legal framework are paramount to ensure sustainability, security, and legal compliance.
+
+In the early days, a community-driven model will be used so development and maintenance will be as a public good, supported by a consortium of teams from within the ecosystem, such as the Astro Labs team and other core members. Operational and maintenance responsibilities would fall to the collective comprising core community members and affiliate service providers. This structure would allow for shared responsibility, ensuring that the wallet's management remains transparent, decentralized, and aligned with the community's interests.
+
+The PHW serves as a gateway to assets into AO, taking charge of managing users' AR deposits. It secures these assets through predefined wallets, enhancing security and simplifying operations for users within the ecosystem. Similar to the Wrapped Bitcoin (WBTC) model with BitGo as the primary custodian, consideration is being given to appointing a third-party custodial partner to oversee the development of new wallets. This partnership would improve transparency and efficiency, particularly in wrapping AR tokens for use on AO compute environments.
+
+\subsubsection{Legal and Governance Structure}
+The PHW may be governed by two legal entities: a foundation and a trustee. The foundation would manage overarching governance, while the trustee would oversee daily operations and legal responsibilities. This dual-entity approach facilitates structured management of the PHW, with the foundation acting as a non-profit steward for the community in commercial dealings with service providers.
+
+\subsubsection{Bankruptcy Remote Vehicle}
+Incorporating the PHW within a trust's legal framework would make it bankruptcy remote, safeguarding it against the insolvency of associated entities. This setup provides a robust legal buffer, enhancing asset security for users.
+
+Noting that as the protocol matures and grows, the needs will change for both the community at large and Astro itself, thus these considerations and approaches may differ and be adjusted as the landscape changes.
